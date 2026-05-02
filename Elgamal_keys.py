@@ -1,13 +1,13 @@
-
-from Crypto.Util.number import getPrime
 import random
 import json
 import os
+from Crypto.Util.number import getPrime
 
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 #initialize user
 
 def initialize_user(username):
+    print("DEBUG: generating keys...")
     #given el username, han generate elgamal keys w ne3melohom save fe files
     private_key, public_key = generate_elgamal_keys()
 
@@ -18,7 +18,7 @@ def initialize_user(username):
 
 #generate public and private keys
 
-def generate_elgamal_keys(bits=2048):
+def generate_elgamal_keys(bits=10):
     #generate a large prime number p
     p = generate_large_prime(bits)
     
@@ -46,22 +46,17 @@ def generate_elgamal_keys(bits=2048):
     return private_key, public_key
 
 #generate a large prime number
-def generate_large_prime(bits=2048):
+def generate_large_prime(bits=10):
     return getPrime(bits)
 
 #choose a primitive root
 def choose_primitive_root(p):
-   phi= p - 1
-   factors = prime_factors(phi)
-   while True:
+    
+    while True:
         g = random.randint(2, p - 2)
-        valid = True
-        for factor in factors:
-            if pow(g, phi // factor, p) == 1:
-                valid = False
-                break
 
-        if valid:
+        
+        if pow(g, (p - 1) // 2, p) != 1:
             return g
         
 def prime_factors(n):
@@ -94,23 +89,19 @@ def choose_private_key(p):
 
 #save keys to a file
 def save_private_key(username, private_key):
-    os.makedirs("users", exist_ok=True)
-    
-    path = f"users/{username}_private.json"
+    path = os.path.join(BASE_DIR, f"{username}_private.json")
     with open(path, "w") as f:
         json.dump(private_key, f, indent=4)
 
 def save_public_key(username, public_key):
-    os.makedirs("users", exist_ok=True)
-    
-    path = f"users/{username}_public.json"
+    path = os.path.join(BASE_DIR, f"{username}_public.json")
+
     with open(path, "w") as f:
         json.dump(public_key, f, indent=4)
 
-
 #load keys from a file
 def load_private_key(username):
-    path = f"users/{username}_private.json"
+    path = os.path.join(BASE_DIR, f"{username}_private.json")
 
     if not os.path.exists(path):
         raise FileNotFoundError("Private key not found")
@@ -119,7 +110,7 @@ def load_private_key(username):
         return json.load(f)
 
 def load_public_key(username):
-    path = f"users/{username}_public.json"
+    path = os.path.join(BASE_DIR, f"{username}_public.json")
 
     if not os.path.exists(path):
         raise FileNotFoundError("Public key not found")
