@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureVault</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap');
+
+:root {
+  --bg:      #07090d;
+  --bg2:     #0b0f15;
+  --bg3:     #0f1520;
+  --panel:   #090e18;
+  --b1:      #162030;
+  --b2:      #0d1a28;
+  --green:   #00ff88;
+  --green2:  #00cc66;
+  --green3:  rgba(0,255,136,.07);
+  --cyan:    #00d4ff;
+  --red:     #ff3355;
+  --yellow:  #ffd060;
+  --txt:     #b8d4e0;
+  --txt2:    #5a7a8a;
+  --txt3:    #2a4a5a;
+  --glow:    0 0 18px rgba(0,255,136,.35);
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Rajdhani', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--sans);
+  display:flex;flex-direction:column;
+}
+
+/* scanlines */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.012) 3px,rgba(0,255,136,.012) 4px);
+  pointer-events:none;z-index:9999;
+}
+
+/* grid bg */
+.gbg{
+  position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,255,136,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,255,136,.03) 1px,transparent 1px);
+  background-size:48px 48px;
+  animation:gbgMove 25s linear infinite;
+  pointer-events:none;
+}
+@keyframes gbgMove{to{background-position:48px 48px}}
+
+/* corner brackets */
+.brk{position:fixed;width:60px;height:60px;pointer-events:none;opacity:.35;}
+.brk.tl{top:10px;left:10px;border-top:1px solid var(--green);border-left:1px solid var(--green);}
+.brk.tr{top:10px;right:10px;border-top:1px solid var(--green);border-right:1px solid var(--green);}
+.brk.bl{bottom:10px;left:10px;border-bottom:1px solid var(--green);border-left:1px solid var(--green);}
+.brk.br{bottom:10px;right:10px;border-bottom:1px solid var(--green);border-right:1px solid var(--green);}
+
+/* ══════════════ LOCK SCREEN ══════════════ */
+#lock{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);
+  transition:opacity .7s,transform .7s;
+}
+#lock.out{opacity:0;transform:scale(1.03);pointer-events:none;}
+
+.lk-eyebrow{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:5px;margin-bottom:12px;}
+.lk-title{
+  font-family:var(--sans);font-size:64px;font-weight:700;
+  letter-spacing:10px;color:var(--green);
+  text-shadow:var(--glow),0 0 80px rgba(0,255,136,.25);
+  animation:titlePulse 4s ease-in-out infinite;
+  margin-bottom:6px;
+}
+@keyframes titlePulse{50%{text-shadow:0 0 25px rgba(0,255,136,.6),0 0 80px rgba(0,255,136,.2)}}
+.lk-sub{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:3px;margin-bottom:52px;}
+
+.lk-box{width:360px;display:flex;flex-direction:column;gap:14px;}
+.lk-label{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--green);margin-bottom:5px;display:block;opacity:.8;}
+.lk-input{
+  width:100%;background:var(--panel);
+  border:1px solid var(--b1);
+  color:var(--green);font-family:var(--mono);font-size:14px;
+  padding:14px 16px;outline:none;letter-spacing:2px;
+  transition:border-color .3s,box-shadow .3s;
+}
+.lk-input:focus{border-color:var(--green);box-shadow:0 0 14px rgba(0,255,136,.18),inset 0 0 8px rgba(0,255,136,.04);}
+.lk-input::placeholder{color:var(--txt3);letter-spacing:1px;}
+
+.lk-actions{display:flex;gap:10px;margin-top:6px;}
+.lk-btn{
+  flex:1;padding:14px;background:transparent;
+  border:1px solid var(--green);color:var(--green);
+  font-family:var(--mono);font-size:11px;letter-spacing:3px;
+  cursor:pointer;transition:all .3s;position:relative;overflow:hidden;
+}
+.lk-btn::before{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(0,255,136,.12),transparent);
+  transition:left .4s;
+}
+.lk-btn:hover{background:rgba(0,255,136,.07);box-shadow:var(--glow);}
+.lk-btn:hover::before{left:100%;}
+.lk-btn.secondary{border-color:var(--b1);color:var(--txt2);}
+.lk-btn.secondary:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 14px rgba(0,212,255,.2);}
+
+.lk-status{
+  font-family:var(--mono);font-size:10px;letter-spacing:2px;
+  color:var(--txt3);margin-top:24px;min-height:18px;text-align:center;
+}
+.lk-status.err{color:var(--red);}
+.lk-status.ok{color:var(--green);}
+.blink{animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0}}
+
+/* ══════════════ APP ══════════════ */
+#app{display:none;flex-direction:column;height:100vh;}
+#app.on{display:flex;}
+
+/* topbar */
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 28px;
+  background:var(--bg2);
+  border-bottom:1px solid var(--b1);
+  flex-shrink:0;
+}
+.top-brand{font-family:var(--mono);font-size:15px;color:var(--green);letter-spacing:4px;text-shadow:0 0 10px rgba(0,255,136,.4);}
+.top-brand em{color:var(--txt3);font-style:normal;}
+.top-right{display:flex;align-items:center;gap:18px;}
+.top-user{font-family:var(--mono);font-size:10px;color:var(--txt2);letter-spacing:2px;}
+.top-user span{color:var(--green);}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:dotP 2s ease-in-out infinite;margin-right:6px;}
+@keyframes dotP{50%{opacity:.35}}
+.top-lock{
+  background:transparent;border:1px solid var(--b1);
+  color:var(--txt2);font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  padding:6px 14px;cursor:pointer;transition:all .3s;
+}
+.top-lock:hover{border-color:var(--red);color:var(--red);}
+
+/* body */
+.body{display:flex;flex:1;min-height:0;}
+
+/* sidebar */
+.side{
+  width:220px;flex-shrink:0;
+  background:var(--bg2);border-right:1px solid var(--b2);
+  padding:20px 0;display:flex;flex-direction:column;gap:3px;
+  overflow-y:auto;
+}
+.side-sec{
+  font-family:var(--mono);font-size:8px;letter-spacing:3px;
+  color:var(--txt3);padding:10px 18px 4px;margin-top:6px;
+}
+.nav{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 18px;cursor:pointer;
+  font-size:13px;font-weight:500;letter-spacing:1px;
+  color:var(--txt2);
+  border-left:2px solid transparent;
+  transition:all .2s;
+}
+.nav:hover{color:var(--txt);background:rgba(0,255,136,.03);}
+.nav.on{color:var(--green);border-left-color:var(--green);background:var(--green3);}
+.nav-ic{font-size:12px;width:16px;text-align:center;}
+.nav-badge{
+  margin-left:auto;font-family:var(--mono);font-size:8px;
+  background:rgba(0,255,136,.12);color:var(--green);
+  padding:2px 7px;
+}
+
+/* main */
+.main{flex:1;padding:26px 30px;overflow-y:auto;}
+.page{display:none;animation:fadeUp .3s ease;}
+.page.on{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--b2);}
+.pt{font-size:26px;font-weight:700;letter-spacing:3px;}
+.pt em{color:var(--green);font-style:normal;}
+.ps{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-top:3px;}
+
+/* stats */
+.stats{display:flex;gap:14px;margin-bottom:24px;}
+.stat{flex:1;background:var(--panel);border:1px solid var(--b2);padding:16px 18px;}
+.stat-n{font-family:var(--mono);font-size:28px;line-height:1;}
+.stat-l{font-size:10px;color:var(--txt3);letter-spacing:2px;margin-top:5px;text-transform:uppercase;}
+
+/* search */
+.search{
+  width:100%;background:var(--panel);border:1px solid var(--b2);
+  color:var(--txt);font-family:var(--mono);font-size:12px;
+  padding:11px 14px 11px 38px;outline:none;letter-spacing:1px;
+  margin-bottom:18px;transition:border-color .3s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%232a4a5a' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:13px center;
+}
+.search:focus{border-color:var(--green);}
+.search::placeholder{color:var(--txt3);}
+
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+
+/* card */
+.card{
+  background:var(--panel);border:1px solid var(--b2);
+  padding:18px;transition:all .25s;position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;width:2px;height:100%;
+  background:var(--green);transform:scaleY(0);transition:transform .25s;transform-origin:bottom;
+}
+.card:hover{border-color:var(--b1);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.4);}
+.card:hover::before{transform:scaleY(1);}
+
+.card-site{font-size:14px;font-weight:700;letter-spacing:1px;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.cdot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);flex-shrink:0;}
+.card-user{font-family:var(--mono);font-size:10px;color:var(--txt2);letter-spacing:1px;margin-bottom:12px;}
+.card-pw{
+  background:var(--bg3);padding:7px 10px;
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11px;color:var(--txt3);
+}
+.card-pw-val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.show{background:none;border:none;color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px;flex-shrink:0;}
+
+.card-acts{display:flex;gap:8px;margin-top:12px;opacity:0;transition:opacity .2s;}
+.card:hover .card-acts{opacity:1;}
+.act{
+  flex:1;padding:6px;background:transparent;font-family:var(--mono);
+  font-size:8px;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .2s;
+}
+.act-e{color:var(--cyan);border-color:rgba(0,212,255,.3);}
+.act-e:hover{background:rgba(0,212,255,.08);}
+.act-d{color:var(--red);border-color:rgba(255,51,85,.3);}
+.act-d:hover{background:rgba(255,51,85,.08);}
+
+/* empty */
+.empty{
+  grid-column:1/-1;text-align:center;padding:60px;
+  font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:2px;
+}
+.empty-ic{font-size:36px;opacity:.2;margin-bottom:14px;}
+
+/* form panel */
+.fp{background:var(--panel);border:1px solid var(--b1);padding:26px;max-width:480px;}
+.fp-title{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--green);margin-bottom:22px;}
+.fg{margin-bottom:16px;}
+.fl{display:block;font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--txt3);margin-bottom:6px;}
+.fi{
+  width:100%;background:var(--bg3);border:1px solid var(--b2);
+  color:var(--txt);font-family:var(--mono);font-size:13px;
+  padding:11px 14px;outline:none;letter-spacing:1px;transition:all .3s;
+}
+.fi:focus{border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.12);}
+.fi::placeholder{color:var(--txt3);}
+.pw-wrap{position:relative;}
+.ptog{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:8px;letter-spacing:1px;}
+
+.btn{
+  width:100%;padding:13px;background:transparent;
+  border:1px solid var(--green);color:var(--green);
+  font-family:var(--mono);font-size:10px;letter-spacing:4px;
+  cursor:pointer;transition:all .3s;margin-top:8px;
+  position:relative;overflow:hidden;
+}
+.btn::before{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(0,255,136,.1),transparent);
+  transition:left .4s;
+}
+.btn:hover{background:rgba(0,255,136,.06);box-shadow:var(--glow);}
+.btn:hover::before{left:100%;}
+
+.term{
+  font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:1px;
+  margin-top:18px;padding-top:14px;border-top:1px solid var(--b2);
+}
+.term em{color:var(--green);font-style:normal;}
+
+/* info rows */
+.irows{display:grid;gap:10px;}
+.irow{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg3);padding:12px 14px;border:1px solid var(--b2);
+}
+.ik{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--txt3);}
+.iv{font-family:var(--mono);font-size:10px;}
+
+/* modal */
+.ov{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);
+  backdrop-filter:blur(5px);z-index:200;
+  display:none;align-items:center;justify-content:center;
+}
+.ov.open{display:flex;}
+.modal{
+  background:var(--bg2);border:1px solid var(--b1);
+  padding:28px;width:420px;
+  animation:fadeUp .3s ease;
+  box-shadow:0 20px 50px rgba(0,0,0,.7);
+}
+.modal-title{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--green);margin-bottom:20px;}
+.modal-acts{display:flex;gap:10px;margin-top:16px;}
+.mbtn{
+  flex:1;padding:11px;background:transparent;font-family:var(--mono);
+  font-size:9px;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .2s;
+}
+.mbtn-c{border-color:var(--b1);color:var(--txt2);}
+.mbtn-c:hover{border-color:var(--txt2);color:var(--txt);}
+.mbtn-ok{border-color:var(--green);color:var(--green);}
+.mbtn-ok:hover{background:rgba(0,255,136,.07);}
+
+/* toast */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:1000;
+  background:var(--panel);border:1px solid var(--green);
+  color:var(--green);font-family:var(--mono);font-size:10px;letter-spacing:2px;
+  padding:12px 18px;
+  transform:translateY(70px);opacity:0;
+  transition:all .4s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 4px 18px rgba(0,0,0,.5),0 0 18px rgba(0,255,136,.18);
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{border-color:var(--red);color:var(--red);box-shadow:0 4px 18px rgba(0,0,0,.5),0 0 18px rgba(255,51,85,.18);}
+</style>
+</head>
+<body>
+<div class="gbg"></div>
+<div class="brk tl"></div><div class="brk tr"></div>
+<div class="brk bl"></div><div class="brk br"></div>
+
+<!-- ══ LOCK SCREEN ══ -->
+<div id="lock">
+  <div class="lk-eyebrow">// CMPS426 · SECURE PASSWORD MANAGER //</div>
+  <div class="lk-title">VAULT</div>
+  <div class="lk-sub">AES-256-GCM · SHA-256 · ELGAMAL · DIFFIE-HELLMAN</div>
+
+  <div class="lk-box">
+    <div>
+      <label class="lk-label">USERNAME</label>
+      <input class="lk-input" id="lkUser" type="text" placeholder="your username...">
+    </div>
+    <div>
+      <label class="lk-label">MASTER PASSWORD</label>
+      <input class="lk-input" id="lkPass" type="password" placeholder="master key...">
+    </div>
+    <div class="lk-actions">
+      <button class="lk-btn" onclick="unlock()">[ UNLOCK ]</button>
+      <button class="lk-btn secondary" onclick="showInit()">[ NEW USER ]</button>
+    </div>
+    <div class="lk-status" id="lkStatus"><span class="blink">_</span></div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="top">
+    <div class="top-brand">SECURE<em>VAULT</em></div>
+    <div class="top-right">
+      <div class="top-user"><span class="dot"></span>USER: <span id="topUser">—</span></div>
+      <button class="top-lock" onclick="lockOut()">[ LOCK ]</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="side">
+      <div class="side-sec">NAVIGATION</div>
+      <div class="nav on" onclick="goPage('vault',this)"><span class="nav-ic">⬡</span>VAULT<span class="nav-badge" id="navBadge">0</span></div>
+      <div class="nav" onclick="goPage('add',this)"><span class="nav-ic">＋</span>ADD ENTRY</div>
+      <div class="side-sec">SYSTEM</div>
+      <div class="nav" onclick="goPage('info',this)"><span class="nav-ic">◈</span>CRYPTO INFO</div>
+    </div>
+
+    <div class="main">
+
+      <!-- VAULT PAGE -->
+      <div class="page on" id="page-vault">
+        <div class="ph">
+          <div>
+            <div class="pt"><em>◈</em> CREDENTIAL VAULT</div>
+            <div class="ps">// ALL ENTRIES ENCRYPTED WITH AES-256-GCM</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat-n" id="statTotal" style="color:var(--green)">0</div><div class="stat-l">Total Entries</div></div>
+          <div class="stat"><div class="stat-n" style="color:var(--cyan);font-size:20px;padding-top:4px">AES-GCM</div><div class="stat-l">Encryption</div></div>
+          <div class="stat"><div class="stat-n" id="sigStat" style="font-size:16px;padding-top:6px;color:var(--yellow)">SIGNED</div><div class="stat-l">Vault Status</div></div>
+        </div>
+        <input class="search" id="srch" placeholder="search credentials..." oninput="renderCards()">
+        <div class="grid" id="grid"></div>
+      </div>
+
+      <!-- ADD PAGE -->
+      <div class="page" id="page-add">
+        <div class="ph">
+          <div>
+            <div class="pt"><em>＋</em> NEW ENTRY</div>
+            <div class="ps">// ENCRYPT & STORE NEW CREDENTIAL</div>
+          </div>
+        </div>
+        <div class="fp">
+          <div class="fp-title">// CREDENTIAL DATA</div>
+          <div class="fg"><label class="fl">WEBSITE / SERVICE</label><input class="fi" id="aWeb" placeholder="github.com"></div>
+          <div class="fg"><label class="fl">USERNAME / EMAIL</label><input class="fi" id="aUsr" placeholder="user@example.com"></div>
+          <div class="fg">
+            <label class="fl">PASSWORD</label>
+            <div class="pw-wrap">
+              <input class="fi" id="aPw" type="password" placeholder="••••••••••">
+              <button class="ptog" onclick="tog('aPw',this)">SHOW</button>
+            </div>
+          </div>
+          <button class="btn" onclick="addEntry()">[ ENCRYPT &amp; SAVE ]</button>
+          <div class="term">$ vault.add_credential(<em>website, username, password, vault_owner</em>)</div>
+        </div>
+      </div>
+
+      <!-- INFO PAGE -->
+      <div class="page" id="page-info">
+        <div class="ph">
+          <div>
+            <div class="pt"><em>◈</em> CRYPTO INFO</div>
+            <div class="ps">// CRYPTOGRAPHIC PARAMETERS IN USE</div>
+          </div>
+        </div>
+        <div class="fp" style="max-width:560px">
+          <div class="fp-title">// ENCRYPTION SPECIFICATION</div>
+          <div class="irows">
+            <div class="irow"><span class="ik">KEY DERIVATION</span><span class="iv" style="color:var(--green)">SHA-256(master_password)</span></div>
+            <div class="irow"><span class="ik">SYMMETRIC CIPHER</span><span class="iv" style="color:var(--green)">AES-256-GCM</span></div>
+            <div class="irow"><span class="ik">VAULT INTEGRITY</span><span class="iv" style="color:var(--cyan)">ELGAMAL DIGITAL SIGNATURE</span></div>
+            <div class="irow"><span class="ik">KEY EXCHANGE</span><span class="iv" style="color:var(--yellow)">DIFFIE-HELLMAN</span></div>
+            <div class="irow"><span class="ik">HASH FUNCTION</span><span class="iv" style="color:var(--green)">SHA-256</span></div>
+            <div class="irow"><span class="ik">STORAGE FORMAT</span><span class="iv" style="color:var(--txt2)">AES-ENCRYPTED JSON</span></div>
+          </div>
+          <div class="term" style="margin-top:20px">$ CMPS426 · Cairo University · Faculty of Engineering · <em>Computer Engineering</em></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="ov" id="editOv">
+  <div class="modal">
+    <div class="modal-title">// UPDATE PASSWORD</div>
+    <div class="fg"><label class="fl">WEBSITE</label><input class="fi" id="eWeb" readonly style="opacity:.45"></div>
+    <div class="fg"><label class="fl">USERNAME</label><input class="fi" id="eUsr" readonly style="opacity:.45"></div>
+    <div class="fg">
+      <label class="fl">NEW PASSWORD</label>
+      <div class="pw-wrap">
+        <input class="fi" id="ePw" type="password" placeholder="new password...">
+        <button class="ptog" onclick="tog('ePw',this)">SHOW</button>
+      </div>
+    </div>
+    <div class="modal-acts">
+      <button class="mbtn mbtn-c" onclick="closeModal()">[ CANCEL ]</button>
+      <button class="mbtn mbtn-ok" onclick="confirmEdit()">[ UPDATE ]</button>
+    </div>
+  </div>
+</div>
+
+<!-- Init Modal -->
+<div class="ov" id="initOv">
+  <div class="modal">
+    <div class="modal-title">// INITIALIZE NEW USER</div>
+    <div class="fg"><label class="fl">USERNAME</label><input class="fi" id="initUser" placeholder="choose a username..."></div>
+    <div class="modal-acts">
+      <button class="mbtn mbtn-c" onclick="closeInit()">[ CANCEL ]</button>
+      <button class="mbtn mbtn-ok" onclick="initUser()">[ GENERATE KEYS ]</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let STATE = { master:'', user:'', entries:[] };
+
+// ── Lock / Unlock ─────────────────────────────────────────────
+async function unlock() {
+  const user = document.getElementById('lkUser').value.trim();
+  const pass = document.getElementById('lkPass').value;
+  if (!user || !pass) { setLS('ERROR: FILL ALL FIELDS', 'err'); return; }
+  setLS('VERIFYING SIGNATURE & DECRYPTING...', '');
+
+  const res = await api('/api/unlock', { master: pass, username: user });
+  if (!res.ok) { setLS('ERROR: ' + (res.error || 'WRONG PASSWORD'), 'err'); return; }
+
+  STATE.master  = pass;
+  STATE.user    = user;
+  STATE.entries = res.entries || [];
+
+  document.getElementById('lock').classList.add('out');
+  document.getElementById('app').classList.add('on');
+  document.getElementById('topUser').textContent = user.toUpperCase();
+  renderCards();
+  toast('VAULT UNLOCKED');
+}
+
+function lockOut() {
+  STATE = { master:'', user:'', entries:[] };
+  document.getElementById('lkPass').value = '';
+  document.getElementById('lock').classList.remove('out');
+  document.getElementById('app').classList.remove('on');
+  setLS('VAULT LOCKED', 'ok');
+}
+
+document.getElementById('lkPass').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
+document.getElementById('lkUser').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
+
+function setLS(msg, type) {
+  const el = document.getElementById('lkStatus');
+  el.textContent = msg;
+  el.className = 'lk-status' + (type ? ' '+type : '');
+}
+
+// ── Init user ─────────────────────────────────────────────────
+function showInit() { document.getElementById('initOv').classList.add('open'); }
+function closeInit() { document.getElementById('initOv').classList.remove('open'); }
+
+async function initUser() {
+  const u = document.getElementById('initUser').value.trim();
+  if (!u) { toast('USERNAME REQUIRED', true); return; }
+  const res = await api('/api/init', { username: u });
+  if (!res.ok) { toast('ERROR: ' + res.error, true); return; }
+  closeInit();
+  toast('ELGAMAL KEYS GENERATED FOR ' + u.toUpperCase());
+  document.getElementById('lkUser').value = u;
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function goPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav').forEach(n => n.classList.remove('on'));
+  document.getElementById('page-'+name).classList.add('on');
+  if (el) el.classList.add('on');
+  if (name === 'vault') renderCards();
+}
+
+// ── Render vault cards ────────────────────────────────────────
+function renderCards() {
+  const q = (document.getElementById('srch').value||'').toLowerCase();
+  const filtered = STATE.entries.filter(e =>
+    e.website.toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
+  );
+  document.getElementById('statTotal').textContent  = STATE.entries.length;
+  document.getElementById('navBadge').textContent   = STATE.entries.length;
+
+  const grid = document.getElementById('grid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty">
+      <div class="empty-ic">⬡</div>
+      ${STATE.entries.length === 0 ? 'VAULT IS EMPTY — ADD YOUR FIRST ENTRY' : 'NO RESULTS'}
+    </div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map((e,i) => `
+    <div class="card">
+      <div class="card-site"><span class="cdot"></span>${esc(e.website)}</div>
+      <div class="card-user">${esc(e.username)}</div>
+      <div class="card-pw">
+        <span class="card-pw-val" id="pv${i}">••••••••••••</span>
+        <button class="show" onclick="revealPw(${i},'${esc(e.website)}',this)">SHOW</button>
+      </div>
+      <div class="card-acts">
+        <button class="act act-e" onclick="openEdit('${esc(e.website)}','${esc(e.username)}')">EDIT</button>
+        <button class="act act-d" onclick="delEntry('${esc(e.website)}','${esc(e.username)}')">DELETE</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Reveal password (fetch from server) ───────────────────────
+async function revealPw(i, website, btn) {
+  const el = document.getElementById('pv'+i);
+  if (btn.textContent === 'HIDE') { el.textContent='••••••••••••'; btn.textContent='SHOW'; return; }
+  const res = await api('/api/get', { master:STATE.master, username:STATE.user, website });
+  if (!res.ok) { toast('ERROR: '+res.error, true); return; }
+  el.textContent = res.entries[0].password;
+  btn.textContent = 'HIDE';
+}
+
+// ── Add entry ─────────────────────────────────────────────────
+async function addEntry() {
+  const web = document.getElementById('aWeb').value.trim();
+  const usr = document.getElementById('aUsr').value.trim();
+  const pw  = document.getElementById('aPw').value.trim();
+  if (!web||!usr||!pw) { toast('ALL FIELDS REQUIRED', true); return; }
+
+  const res = await api('/api/add', {
+    master: STATE.master, vault_owner: STATE.user,
+    website: web, username: usr, password: pw
+  });
+  if (!res.ok) { toast('ERROR: '+res.error, true); return; }
+
+  STATE.entries.push({ website: web, username: usr });
+  document.getElementById('aWeb').value = '';
+  document.getElementById('aUsr').value = '';
+  document.getElementById('aPw').value  = '';
+  toast('CREDENTIAL ENCRYPTED & SAVED');
+  goPage('vault', document.querySelector('.nav'));
+  document.querySelector('.nav').classList.add('on');
+}
+
+// ── Edit entry ────────────────────────────────────────────────
+let editTarget = {};
+function openEdit(website, username) {
+  editTarget = { website, username };
+  document.getElementById('eWeb').value = website;
+  document.getElementById('eUsr').value = username;
+  document.getElementById('ePw').value  = '';
+  document.getElementById('editOv').classList.add('open');
+}
+function closeModal() { document.getElementById('editOv').classList.remove('open'); }
+
+async function confirmEdit() {
+  const np = document.getElementById('ePw').value.trim();
+  if (!np) { toast('NEW PASSWORD REQUIRED', true); return; }
+  const res = await api('/api/update', {
+    master: STATE.master, vault_owner: STATE.user,
+    website: editTarget.website, username: editTarget.username, new_password: np
+  });
+  if (!res.ok) { toast('ERROR: '+res.error, true); return; }
+  closeModal();
+  toast('PASSWORD UPDATED & RE-SIGNED');
+  renderCards();
+}
+
+// ── Delete entry ──────────────────────────────────────────────
+async function delEntry(website, username) {
+  const res = await api('/api/delete', {
+    master: STATE.master, vault_owner: STATE.user,
+    website, username_cred: username
+  });
+  if (!res.ok) { toast('ERROR: '+res.error, true); return; }
+  STATE.entries = STATE.entries.filter(e => !(e.website===website && e.username===username));
+  toast('ENTRY DELETED & VAULT RE-SIGNED');
+  renderCards();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+async function api(url, body) {
+  try {
+    const r = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    return await r.json();
+  } catch(e) {
+    return { ok:false, error: e.message };
+  }
+}
+
+function tog(id, btn) {
+  const el = document.getElementById(id);
+  if (el.type==='password') { el.type='text'; btn.textContent='HIDE'; }
+  else { el.type='password'; btn.textContent='SHOW'; }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let tTimer;
+function toast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = (isErr ? '✗ ' : '✓ ') + msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// close modals on overlay click
+['editOv','initOv'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target===this) this.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
